@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dynamic State-Vector Numerology (DSVN)</title>
+  <!-- Inline Scalable Vector Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a0a0a'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%2334d399' stroke-width='1.5' stroke-dasharray='2 2'/%3E%3Cpolygon points='16,7 25,23 7,23' fill='rgba(52,211,153,0.2)' stroke='%2334d399' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='2' fill='%2322d3ee'/%3E%3C/svg%3E">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #080808;
+      color: #d4d4d4;
+    }
+
+    .font-serif-title {
+      font-family: 'Cinzel', serif;
+    }
+
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Screen UI container */
+    .screen-container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    /* Print & Publication Dossier Formatting */
+    @page {
+      size: A4 portrait;
+      margin: 15mm;
+    }
+
+    @media print {
+      body {
+        background-color: #ffffff !important;
+        color: #171717 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-page {
+        page-break-after: always;
+        page-break-inside: avoid;
+        min-height: 265mm;
+        padding: 10mm;
+        display: flex !important;
+        flex-direction: column;
+        justify-content: space-between;
+        background: #ffffff !important;
+        color: #171717 !important;
+        border: none !important;
+        box-shadow: none !important;
+        margin-bottom: 0 !important;
+      }
+      .print-page:last-child {
+        page-break-after: auto;
+      }
+      .border-neutral-800 {
+        border-color: #e5e5e5 !important;
+      }
+      .bg-neutral-900, .bg-neutral-950 {
+        background-color: #fcfcfc !important;
+        border: 1px solid #e5e5e5 !important;
+      }
+      text {
+        fill: #171717 !important;
+      }
+      line, circle, path, rect {
+        stroke-opacity: 1 !important;
+      }
+    }
+  </style>
+</head>
+<body class="antialiased min-h-screen pb-16">
+
+  <!-- TOP APP CONTROLS (Screen only) -->
+  <header class="no-print border-b border-neutral-800 bg-neutral-950/80 sticky top-0 z-40 backdrop-blur-md">
+    <div class="screen-container px-4 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <svg class="w-7 h-7 text-emerald-400" viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="13" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 3"/>
+          <polygon points="16,6 26,24 6,24" stroke="currentColor" stroke-width="1.5" fill="rgba(52,211,153,0.1)"/>
+          <circle cx="16" cy="16" r="2.5" fill="#22d3ee"/>
+        </svg>
+        <div>
+          <h1 class="font-serif-title text-base font-bold text-white tracking-wider">DSVN COMPUTATION ENGINE</h1>
+          <p class="text-[10px] font-mono-code text-neutral-400">Dynamic State-Vector Numerology &bull; v1.0.0</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="openCompareModal()" class="flex items-center gap-2 px-3 py-1.5 text-xs font-mono-code bg-neutral-900 border border-neutral-700 text-neutral-200 rounded hover:bg-neutral-800 hover:text-cyan-400 transition">
+          <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+          Compare Vectors
+        </button>
+        <button onclick="exportProfileJSON()" class="flex items-center gap-2 px-3 py-1.5 text-xs font-mono-code bg-neutral-900 border border-neutral-700 text-neutral-200 rounded hover:bg-neutral-800 hover:text-emerald-400 transition">
+          <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Export JSON
+        </button>
+        <button onclick="window.print()" class="flex items-center gap-2 px-3 py-1.5 text-xs font-mono-code bg-emerald-500 text-black font-semibold rounded hover:bg-emerald-400 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          Print 8-Page Folio
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- CALCULATION INPUT DOCK (Screen only) -->
+  <section class="no-print screen-container px-4 py-8">
+    <div class="bg-neutral-900 border border-neutral-800 rounded-xl p-6 shadow-xl">
+      <div class="max-w-2xl">
+        <h2 class="text-sm font-mono-code text-emerald-400 uppercase tracking-widest mb-1">Vector Parameter Input</h2>
+        <p class="text-xs text-neutral-400 mb-6">Enter phonetic identity string and temporal coordinate. Calculations update dynamically with zero server roundtrips.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <div class="md:col-span-6">
+          <label class="block text-xs font-mono-code text-neutral-400 uppercase mb-2">Subject Full Name</label>
+          <input type="text" id="inputName" value="Bala Danmeri" class="w-full bg-neutral-950 border border-neutral-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono-code">
+        </div>
+        <div class="md:col-span-4">
+          <label class="block text-xs font-mono-code text-neutral-400 uppercase mb-2">Date of Inception</label>
+          <input type="date" id="inputDate" value="1973-08-04" class="w-full bg-neutral-950 border border-neutral-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono-code">
+        </div>
+        <div class="md:col-span-2 flex items-end">
+          <button onclick="recalculateDossier()" class="w-full bg-neutral-800 hover:bg-neutral-700 border border-neutral-600 text-white text-xs font-mono-code py-2.5 rounded transition">
+            Recalculate
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8-PAGE DOSSIER OUTPUT -->
+  <main class="screen-container px-4">
+
+    <!-- PAGE 1: Identity Signature & Vector Coordinates -->
+    <article class="print-page bg-neutral-950 border border-neutral-800 rounded-xl p-8 mb-8 shadow-2xl">
+      <div>
+        <div class="flex justify-between items-start border-b border-neutral-800 pb-4 mb-6">
+          <div>
+            <div class="text-[10px] font-mono-code text-emerald-400 tracking-widest uppercase">Folio Sheet 01 &bull; Identity Geometry</div>
+            <h2 class="font-serif-title text-2xl font-bold text-white mt-1" id="p1-name">Bala Danmeri</h2>
+            <div class="text-xs font-mono-code text-neutral-400 mt-1" id="p1-meta">Inception: 1973-08-04 &bull; Age Cycle: 53</div>
+          </div>
+          <div class="text-right">
+            <span class="inline-block px-2.5 py-1 text-[10px] font-mono-code border border-emerald-500/40 text-emerald-400 rounded bg-emerald-500/5">
+              DSVN PHASE: DISTILLATION
+            </span>
+          </div>
+        </div>
+
+        <p class="text-sm leading-relaxed text-neutral-300 mb-6">
+          Dynamic State-Vector Numerology replaces traditional single-digit scalar collapse with continuous vector coordinates. Rather than forcing identity into arbitrary numbers 1 through 9, your profile is evaluated across acoustic speech mechanics, unreduced integer prime tensors, and active state attractors.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div class="bg-neutral-900/60 border border-neutral-800 p-4 rounded-lg">
+            <div class="text-[11px] font-mono-code text-neutral-400 uppercase">Mass Axis ($F_1$ / Base)</div>
+            <div class="text-2xl font-bold text-white font-mono-code mt-1" id="p1-mass">0.784</div>
+            <p class="text-[11px] text-neutral-400 mt-1">Foundational structural grounding and inertia.</p>
+          </div>
+          <div class="bg-neutral-900/60 border border-neutral-800 p-4 rounded-lg">
+            <div class="text-[11px] font-mono-code text-neutral-400 uppercase">Acuity Axis ($F_2$ / Clarity)</div>
+            <div class="text-2xl font-bold text-white font-mono-code mt-1" id="p1-acuity">0.421</div>
+            <p class="text-[11px] text-neutral-400 mt-1">High-frequency cognitive bandwidth and discernment.</p>
+          </div>
+          <div class="bg-neutral-900/60 border border-neutral-800 p-4 rounded-lg">
+            <div class="text-[11px] font-mono-code text-neutral-400 uppercase">Momentum Axis ($\zeta$ / Drive)</div>
+            <div class="text-2xl font-bold text-white font-mono-code mt-1" id="p1-momentum">0.862</div>
+            <p class="text-[11px] text-neutral-400 mt-1">Kinetic forward drive and structural friction.</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col items-center justify-center p-6 bg-neutral-900/30 border border-neutral-800/80 rounded-xl">
+          <div class="text-xs font-mono-code text-neutral-400 uppercase tracking-wider mb-2">3D State Vector Radar Projection</div>
+          <div id="chart-radar-p1" class="w-full max-w-[320px]"></div>
+        </div>
+      </div>
+      <div class="text-[10px] font-mono-code text-neutral-500 pt-4 border-t border-neutral-800 flex justify-between">
+        <span>DSVN Core Folio &bull; Confidential Assessment</span>
+        <span>Page 1 of 8</span>
+      </div>
+    </article>
+
+    <!-- PAGE 2: Acoustic Anatomy -->
+    <article class="print-page bg-neutral-950 border border-neutral-800 rounded-xl p-8 mb-8 shadow-2xl">
+      <div>
+        <div class="border-b border-neutral-800 pb-4 mb-6">
+          <div class="text-[10px] font-mono-code text-emerald-400 tracking-widest uppercase">Folio Sheet 02 &bull; Acoustic Physics</div>
+          <h2 class="font-serif-title text-xl font-bold text-white mt-1">Acoustic Anatomy of the Name</h2>
+        </div>
+        <p class="text-sm leading-relaxed text-neutral-300 mb-6">
+          Pythagorean systems map names to arbitrary Latin alphabet placement ($A=1, B=2$). DSVN measures the actual physical acoustics produced when your name is spoken into atmospheric space—measuring mouth cavity aperture ($F_1$), tongue advancement ($F_2$), and consonant burst impedance.
+        </p>
+
+        <div class="bg-neutral-900/50 border border-neutral-800 p-6 rounded-xl mb-6">
+          <div class="text-xs font-mono-code text-neutral-400 uppercase mb-4">Syllable Spectral Waveform & Formant Trajectory</div>
+          <div id="chart-acoustic-p2" class="w-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs leading-relaxed text-neutral-300">
+          <div class="p-4 bg-neutral-900/40 border border-neutral-800/80 rounded">
+            <h4 class="font-mono-code text-white uppercase font-bold mb-1">Anchor & Transition</h4>
+            <p>The name opens with a voiced bilabial plosive ($/b/$) coupled to an open back vowel ($/ɑː/$) at 750 Hz, anchoring the system with immediate physical mass before flowing into a liquid resonant transition ($/l/, /ə/$).</p>
+          </div>
+          <div class="p-4 bg-neutral-900/40 border border-neutral-800/80 rounded">
+            <h4 class="font-mono-code text-white uppercase font-bold mb-1">The Internal Nasal Bridge</h4>
+            <p>The central juncture ($/dæn.mə.ri/$) employs an alveolar stop followed by a contiguous nasal bridge ($/n/-/m/$), generating internal acoustic compression and intensive analytical consolidation.</p>
+          </div>
+        </div>
+      </div>
+      <div class="text-[10px] font-mono-code text-neutral-500 pt-4 border-t border-neutral-800 flex justify-between">
+        <span>DSVN Core Folio &bull; Acoustic Phonetics Engine</span>
+        <span>Page 2 of 8</span>
+      </div>
+    </article>
+
+    <!-- PAGE 3: Temporal Prime Lattice -->
+    <article class="print-page bg-neutral-950 border border-neutral-800 rounded-xl p-8 mb-8 shadow-2xl">
+      <div>
+        <div class="border-b border-neutral-800 pb-4 mb-6">
+          <div class="text-[10px] font-mono-code text-emerald-400 tracking-widest uppercase">Folio Sheet 03 &bull; Temporal Geometry</div>
+          <h2 class="font-serif-title text-xl font-bold text-white mt-1">Temporal Inception Matrix</h2>
+        </div>
+        <p class="text-sm leading-relaxed text-neutral-300 mb-6">
+          Legacy systems sum calendar digits ($1+9+7+3+8+4 = 32 \to 5$), discarding structural geometric data. DSVN analyzes the date as an unreduced integer tensor, factoring numbers into their fundamental prime geometric signatures.
+        </p>
+
+        <div class="grid grid-cols-3 gap-4 mb-6">
+          <div class="bg-neutral-900/50 border border-neutral-800 p-4 rounded text-center">
+            <div class="text-[10px] font-mono-code text-neutral-400 uppercase">Day Coordinate (04)</div>
+            <div class="text-xl font-bold text-emerald-400 font-mono-code mt-1">$2^2$</div>
+            <div class="text-[11px] text-neutral-400 mt-1">Quadratic Plane Stability</div>
+          </div>
+          <div class="bg-neutral-900/50 border border-neutral-800 p-4 rounded text-center">
+            <div class="text-[10px] font-mono-code text-neutral-400 uppercase">Month Coordinate (08)</div>
+            <div class="text-xl font-bold text-emerald-400 font-mono-code mt-1">$2^3$</div>
+            <div class="text-[11px] text-neutral-400 mt-1">Volumetric Cube Expansion</div>
+          </div>
+          <div class="bg-neutral-900/50 border border-neutral-800 p-4 rounded text-center">
+            <div class="text-[10px] font-mono-code text-neutral-400 uppercase">Year Coordinate (1973)</div>
+            <div class="text-xl font-bold text-cyan-400 font-mono-code mt-1">Prime 1973</div>
+            <div class="text-[11px] text-neutral-400 mt-1">Indivisible Monolith</div>
+          </div>
+        </div>
+
+        <div class="bg-neutral-900/50 border border-neutral-800 p-6 rounded-xl mb-6">
+          <div class="text-xs font-mono-code text-neutral-400 uppercase mb-4">Prime Lattice Structural Geometry</div>
+          <div id="chart-lattice-p3" class="w-full"></div>
+        </div>
+      </div>
+      <div class="text-[10px] font-mono-code text-neutral-500 pt-4 border-t border-neutral-800 flex justify-between">
+        <span>DSVN Core Folio &bull; Arithmetic Prime Lattice</span>
+        <span>Page 3 of 8</span>
+      </div>
+    </article>
+
+    <!-- PAGE 4: Operational States -->
+    <article class="print-page bg-neutral-950 border border-neutral-800 rounded-xl p-8 mb-8 shadow-2xl">
+      <div>
+        <div class="border-b border-neutral-800 pb-4 mb-6">
+          <div class="text-[10px] font-mono-code text-emerald-400 tracking-widest uppercase">Folio Sheet 04 &bull; Phase Dynamics</div>
+          <h2 class="font-serif-title text-xl font-bold text-white mt-1">The Three Operational Modes</h2>
+        </div>
+        <p class="text-sm leading-relaxed text-neutral-300 mb-6">
+          Humans do not possess a single static personality. Your vector shifts across three operational attractors based on energetic load, environmental inputs, and executive focus.
+        </p>
+
+        <div class="bg-neutral-900/50 border border-neutral-800 p-6 rounded-xl mb-6">
+          <div class="text-xs font-mono-code text-neutral-400 uppercase mb-2">Finite State Machine & Transition Thresholds</div>
+          <div id="chart-fsm-p4" class="w-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div class="p-4 bg-neutral-900/40 border border-neutral-800 rounded">
+            <span class="font-mono-code text-emerald-400 uppercase font-bold block mb-1">Ground Mode (Rest)</span>
+            <p class="text-neutral-300">Contemplative synthesis. Low friction, high cognitive indexing, and internal narrative formulation.</p>
+          </div>
+          <div class="p-4 bg-neutral-900/40 border border-neutral-800 rounded">
+            <span class="font-mono-code text-cyan-400 uppercase font-bold block mb-1">Kinetic Mode (Drive)</span>
+            <p class="text-neutral-300">Deterministic architecture. Direct physical construction, modular system design, and execution.</p>
+          </div>
+          <div class="p-4 bg-neutral-900/40 border border-neutral-800 rounded">
+            <span class="font-mono-code text-rose-400 uppercase font-bold block mb-1">Entropy Mode (Stress)</span>
+            <p class="text-neutral-300">Defensive compartmentalization. Withdrawal into rigid systemic categorizations under sustained friction.</p>
+          </div>
+        </div>
+      </div>
+      <div class="text-[10px] font-mono-code text-neutral-500 pt-4 border-t border-neutral-800 flex justify-between">
+        <span>DSVN Core Folio &bull; Discrete State Transitions</span>
+        <span>Page 4 of 8</span>
+      </div>
+    </article>
+
+    <!-- PAGE 5: Temporal Trajectory -->
+    <article class="print-page bg-neutral-950 border border-neutral-800 rounded-xl p-8 mb-8 shadow-2xl">
+      <div>
+        <div class="border-b border-neutral-800 pb-4 mb-6">
+          <div class="text-[10px] font-mono-code text-emerald-400 tracking-widest uppercase">Folio Sheet 05 &bull; Temporal Trajectory</div>
+          <h2 class="font-serif-title text-xl font-bold text-white mt-1">Current Phase Horizon ($t = 53$)</h2>
+        </div>
+        <p class="text-sm leading-relaxed text-neutral-300 mb-6">
+          Time acts as an evolving attractor field. At age 53, the quadratic and cubic base-2 sub-cycles ($2^2, 2^3$) intersect with the invariant prime 1973 coordinate, marking an epochal shift from outward construction to architectural distillation.
+        </p>
+
+        <div class="bg-neutral-900/50 border border-neutral-800 p-6 rounded-xl mb-6">
+          <div class="text-xs font-mono-code text-neutral-400 uppercase mb-4">70-Year Harmonic Trajectory & Current Coordinate</div>
+          <div id="chart-trajectory-p5" class="w-full"></div>
+        </div>
+
+        <div class="p-4 bg-neutral-900/40 border border-neutral-800 rounded text-xs leading-relaxed text-neutral-300">
+          <h4 class="font-mono-code text-emerald-400 font-bold uppercase mb-1">Phase Assessment: The Autonomous Distillation Gateway</h4>
+          <p>The current operational phase favors zero-dependency models, lightweight self-contained frameworks, and the pruning of complex external infrastructure in favor of elegant, sovereign static systems.</p>
+        </div>
+      </div>
+      <div class="text-[10px] font-mono-code text-neutral-500 pt-4 border-t border-neutral-800 flex justify-between">
+        <span>DSVN Core Folio &bull; Phase Space Orbit</span>
+        <span>Page 5 of 8</span>
+      </div>
+    </article>
+
+    <!-- PAGE 6: Stress-Strain Diagnostics -->
+    <article class="print-page bg-neutral-950 border border-neutral-800 rounded-xl p-8 mb-8 shadow-2xl">
+      <div>
+        <div class="border-b border-neutral-800 pb-4 mb-6">
+          <div class="text-[10px] font-mono-code text-emerald-400 tracking-widest uppercase">Folio Sheet 06 &bull; System Diagnostics</div>
+          <h2 class="font-serif-title text-xl font-bold text-white mt-1">Stress-Strain Mechanics & Failure Modes</h2>
+        </div>
+        <p class="text-sm leading-relaxed text-neutral-300 mb-6">
+          Understanding the system's mechanical limits prevents burnout. When cognitive load exceeds material capacity, the unreduced prime year uncouples from phonetic flow, triggering analytical lockup.
+        </p>
+
+        <div class="bg-neutral-900/50 border border-neutral-800 p-6 rounded-xl mb-6">
+          <div class="text-xs font-mono-code text-neutral-400 uppercase mb-4">Cognitive Elasticity vs. Plastic Deformation Curve</div>
+          <div id="chart-stress-p6" class="w-full"></div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 text-xs">
+          <div class="p-4 bg-neutral-900/40 border border-neutral-800 rounded">
+            <h4 class="font-mono-code text-rose-400 font-bold uppercase mb-1">Primary Warning Indicator</h4>
+            <p class="text-neutral-300">Rigid over-indexing. Attempting to force variable human situations into deterministic logical categories.</p>
+          </div>
+          <div class="p-4 bg-neutral-900/40 border border-neutral-800 rounded">
+            <h4 class="font-mono-code text-emerald-400 font-bold uppercase mb-1">Calibration Reset</h4>
+            <p class="text-neutral-300">Tactile grounding. Immediate transition to manual, physical craft, non-screen drafting, or natural solitary environments.</p>
+          </div>
+        </div>
+      </div>
+      <div class="text-[10px] font-mono-code text-neutral-500 pt-4 border-t border-neutral-800 flex justify-between">
+        <span>DSVN Core Folio &bull; Mechanical Diagnostics</span>
+        <span>Page 6 of 8</span>
+      </div>
+    </article>
+
+    <!-- PAGE 7: Relational Harmonics -->
+    <article class="print-page bg-neutral-950 border border-neutral-800 rounded-xl p-8 mb-8 shadow-2xl">
+      <div>
+        <div class="border-b border-neutral-800 pb-4 mb-6">
+          <div class="text-[10px] font-mono-code text-emerald-400 tracking-widest uppercase">Folio Sheet 07 &bull; Relational Coupling</div>
+          <h2 class="font-serif-title text-xl font-bold text-white mt-1">Field Interference & Coupling Metrics</h2>
+        </div>
+        <p class="text-sm leading-relaxed text-neutral-300 mb-6">
+          Relational compatibility is modeled as wave interference. Parallel alignment produces constructive amplification; perpendicular vectors produce cognitive drag; overlapping stress attractors produce systemic lockouts.
+        </p>
+
+        <div class="bg-neutral-900/50 border border-neutral-800 p-6 rounded-xl mb-6">
+          <div class="text-xs font-mono-code text-neutral-400 uppercase mb-4">Wave Interference Waveforms (Constructive vs. Destructive)</div>
+          <div id="chart-wave-p7" class="w-full"></div>
+        </div>
+
+        <div class="p-4 bg-neutral-900/40 border border-neutral-800 rounded text-xs leading-relaxed text-neutral-300">
+          <h4 class="font-mono-code text-white uppercase font-bold mb-1">The Cosine Angle Rule</h4>
+          <p>High cosine alignment ($\cos\theta > 0.85$) indicates shared operational primitives where communication is intuitive. Divergent angles ($\cos\theta < 0.60$) require explicit translation layers but provide powerful orthogonal cross-checks.</p>
+        </div>
+      </div>
+      <div class="text-[10px] font-mono-code text-neutral-500 pt-4 border-t border-neutral-800 flex justify-between">
+        <span>DSVN Core Folio &bull; Relational Tensor Theory</span>
+        <span>Page 7 of 8</span>
+      </div>
+    </article>
+
+    <!-- PAGE 8: Operating Manual -->
+    <article class="print-page bg-neutral-950 border border-neutral-800 rounded-xl p-8 mb-8 shadow-2xl">
+      <div>
+        <div class="border-b border-neutral-800 pb-4 mb-6">
+          <div class="text-[10px] font-mono-code text-emerald-400 tracking-widest uppercase">Folio Sheet 08 &bull; Actionable Synthesis</div>
+          <h2 class="font-serif-title text-xl font-bold text-white mt-1">The Operational Playbook</h2>
+        </div>
+        <p class="text-sm leading-relaxed text-neutral-300 mb-6">
+          Practical calibration protocols designed to align daily cognitive habits, work environments, and creative output with your base state vector.
+        </p>
+
+        <div class="bg-neutral-900/50 border border-neutral-800 p-6 rounded-xl mb-6">
+          <div class="text-xs font-mono-code text-neutral-400 uppercase mb-4">Optimal Diurnal Energy & Focus Schedule</div>
+          <div id="chart-diurnal-p8" class="w-full"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs leading-relaxed text-neutral-300">
+          <div class="p-4 bg-neutral-900/40 border border-neutral-800 rounded">
+            <h4 class="font-mono-code text-emerald-400 uppercase font-bold mb-1">01 &bull; Environmental</h4>
+            <p>Low-noise, uncluttered tactile workspaces. Physical, analog drafting instruments buffer high-frequency digital fatigue.</p>
+          </div>
+          <div class="p-4 bg-neutral-900/40 border border-neutral-800 rounded">
+            <h4 class="font-mono-code text-emerald-400 uppercase font-bold mb-1">02 &bull; Architectural</h4>
+            <p>Prioritize self-contained, offline-first systems. Reduce reliance on multi-tiered external APIs and complex dependencies.</p>
+          </div>
+          <div class="p-4 bg-neutral-900/40 border border-neutral-800 rounded">
+            <h4 class="font-mono-code text-emerald-400 uppercase font-bold mb-1">03 &bull; Collaborative</h4>
+            <p>Maintain clear async boundaries. Protect the contemplative Ground State before shifting into high-friction Kinetic build modes.</p>
+          </div>
+        </div>
+      </div>
+      <div class="text-[10px] font-mono-code text-neutral-500 pt-4 border-t border-neutral-800 flex justify-between">
+        <span>DSVN Core Folio &bull; Final Synthesis</span>
+        <span>Page 8 of 8</span>
+      </div>
+    </article>
+
+  </main>
+
+  <!-- RELATIONAL TENSOR COMPARISON MODAL -->
+  <div id="compareModal" class="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-neutral-900 border border-neutral-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl text-neutral-200">
+      
+      <div class="flex items-center justify-between border-b border-neutral-800 pb-4 mb-6">
+        <div>
+          <h3 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            Relational Vector Resonance & Coupling Tensor
+          </h3>
+          <p class="text-xs text-neutral-400 mt-1">Multi-dimensional directional alignment, mode interference, and temporal prime overlap</p>
+        </div>
+        <button onclick="closeCompareModal()" class="text-neutral-400 hover:text-white text-xl p-1">&times;</button>
+      </div>
+
+      <!-- Upload slots -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="border border-dashed border-neutral-700 rounded-lg p-4 text-center hover:border-neutral-500 transition relative">
+          <input type="file" id="fileProfileA" accept=".json" class="absolute inset-0 opacity-0 cursor-pointer" onchange="loadProfileFile(event, 'A')">
+          <div class="text-xs font-mono-code uppercase tracking-wider text-neutral-400 mb-1">Vector Anchor (Profile A)</div>
+          <div id="labelProfileA" class="font-medium text-emerald-400 truncate">Use Current Engine Calculation</div>
+          <div class="text-[10px] text-neutral-500 mt-1">Click or drag JSON to replace</div>
+        </div>
+
+        <div class="border border-dashed border-neutral-700 rounded-lg p-4 text-center hover:border-neutral-500 transition relative">
+          <input type="file" id="fileProfileB" accept=".json" class="absolute inset-0 opacity-0 cursor-pointer" onchange="loadProfileFile(event, 'B')">
+          <div class="text-xs font-mono-code uppercase tracking-wider text-neutral-400 mb-1">Target Vector (Profile B)</div>
+          <div id="labelProfileB" class="font-medium text-neutral-300 truncate">Upload Second DSVN JSON</div>
+          <div class="text-[10px] text-neutral-500 mt-1">Select file to trigger calculation</div>
+        </div>
+      </div>
+
+      <!-- Results view -->
+      <div id="compareResults" class="hidden flex flex-col gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-neutral-950 border border-neutral-800 p-4 rounded-lg">
+            <div class="text-[11px] font-mono-code uppercase text-neutral-400">Cosine Alignment</div>
+            <div id="resCosineSim" class="text-2xl font-bold text-white mt-1">0.0000</div>
+            <div id="resCosineGrade" class="text-xs text-emerald-400 mt-1">--</div>
+          </div>
+          <div class="bg-neutral-950 border border-neutral-800 p-4 rounded-lg">
+            <div class="text-[11px] font-mono-code uppercase text-neutral-400">Harmonic Trace Sync</div>
+            <div id="resTraceSync" class="text-2xl font-bold text-white mt-1">0.0000</div>
+            <div class="text-xs text-neutral-400 mt-1">Parallel operational states</div>
+          </div>
+          <div class="bg-neutral-950 border border-neutral-800 p-4 rounded-lg">
+            <div class="text-[11px] font-mono-code uppercase text-neutral-400">Entropy Contagion Risk</div>
+            <div id="resEntropyRisk" class="text-2xl font-bold text-white mt-1">0.0000</div>
+            <div id="resEntropyGrade" class="text-xs mt-1">--</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-neutral-950 border border-neutral-800 p-5 rounded-lg flex flex-col items-center">
+            <div class="w-full flex justify-between items-center mb-3">
+              <span class="text-xs font-mono-code uppercase tracking-wider text-neutral-300">Mode Coupling Tensor ($S_A \otimes S_B$)</span>
+              <span class="text-[10px] font-mono-code text-neutral-500">Outer Product</span>
+            </div>
+            <div id="tensorHeatmapContainer" class="w-full max-w-[280px]"></div>
+          </div>
+
+          <div class="bg-neutral-950 border border-neutral-800 p-5 rounded-lg flex flex-col items-center">
+            <div class="w-full flex justify-between items-center mb-3">
+              <span class="text-xs font-mono-code uppercase tracking-wider text-neutral-300">Spatial Vector Overlap</span>
+              <div class="flex items-center gap-3 text-[10px] font-mono-code">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Profile A</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> Profile B</span>
+              </div>
+            </div>
+            <div id="compareRadarContainer" class="w-full max-w-[280px]"></div>
+            <div id="primeLatticeSummary" class="text-[11px] text-neutral-400 text-center mt-3 font-mono-code"></div>
+          </div>
+        </div>
+
+        <div class="bg-neutral-950 border border-neutral-800 p-5 rounded-lg">
+          <div class="text-xs font-mono-code uppercase tracking-wider text-neutral-400 mb-3">Relational Field Diagnostics</div>
+          <ul id="resynthesisPoints" class="text-sm space-y-2 text-neutral-300"></ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT COMPUTATIONAL ENGINE -->
+  <script>
+    // 1. ACOUSTIC FORMANT LOOKUP TABLE (IPA Physics)
+    const IPA_LOOKUP = {
+      'a': { type: 'vowel', f1: 750, f2: 1200, mass: 0.85, friction: 0.1 },
+      'e': { type: 'vowel', f1: 500, f2: 1800, mass: 0.60, friction: 0.2 },
+      'i': { type: 'vowel', f1: 280, f2: 2300, mass: 0.35, friction: 0.3 },
+      'o': { type: 'vowel', f1: 500, f2: 900,  mass: 0.80, friction: 0.2 },
+      'u': { type: 'vowel', f1: 300, f2: 700,  mass: 0.90, friction: 0.2 },
+      'b': { type: 'stop',  voicing: 1, mass: 0.85, friction: 0.85, f1: 200, f2: 800 },
+      'd': { type: 'stop',  voicing: 1, mass: 0.75, friction: 0.80, f1: 250, f2: 1600 },
+      'g': { type: 'stop',  voicing: 1, mass: 0.70, friction: 0.75, f1: 300, f2: 1800 },
+      'p': { type: 'stop',  voicing: 0, mass: 0.60, friction: 0.90, f1: 150, f2: 800 },
+      't': { type: 'stop',  voicing: 0, mass: 0.55, friction: 0.90, f1: 200, f2: 1600 },
+      'k': { type: 'stop',  voicing: 0, mass: 0.50, friction: 0.85, f1: 250, f2: 1800 },
+      'l': { type: 'liquid',voicing: 1, mass: 0.50, friction: 0.25, f1: 400, f2: 1200 },
+      'r': { type: 'tap',   voicing: 1, mass: 0.45, friction: 0.35, f1: 450, f2: 1400 },
+      'm': { type: 'nasal', voicing: 1, mass: 0.70, friction: 0.30, f1: 250, f2: 1000 },
+      'n': { type: 'nasal', voicing: 1, mass: 0.65, friction: 0.30, f1: 300, f2: 1400 },
+      's': { type: 'fricative', voicing: 0, mass: 0.3, friction: 0.95, f1: 300, f2: 2400 },
+      'z': { type: 'fricative', voicing: 1, mass: 0.4, friction: 0.85, f1: 350, f2: 2200 },
+      'h': { type: 'aspirate',  voicing: 0, mass: 0.2, friction: 0.40, f1: 500, f2: 1500 }
+    };
+
+    function analyzeAcoustics(rawName) {
+      const clean = rawName.toLowerCase().replace(/[^a-z]/g, '');
+      const tokens = [];
+      let totalF1 = 0, totalF2 = 0, totalMass = 0, totalFriction = 0;
+      let minF1 = 9999, maxF2 = 0;
+
+      for (let ch of clean) {
+        const data = IPA_LOOKUP[ch] || { type: 'consonant', mass: 0.5, friction: 0.5, f1: 400, f2: 1200 };
+        tokens.push({ char: ch, ...data });
+        totalF1 += data.f1;
+        totalF2 += data.f2;
+        totalMass += data.mass;
+        totalFriction += data.friction;
+        if (data.f1 < minF1) minF1 = data.f1;
+        if (data.f2 > maxF2) maxF2 = data.f2;
+      }
+
+      const count = Math.max(1, tokens.length);
+      return {
+        tokens,
+        avgF1: totalF1 / count,
+        avgF2: totalF2 / count,
+        avgMass: totalMass / count,
+        frictionScore: totalFriction / count,
+        minF1,
+        maxF2
+      };
+    }
+
+    // 2. INTEGER PRIME FACTOR ENGINE (No lossy addition)
+    function getPrimeFactors(n) {
+      const factors = {};
+      let d = 2;
+      let temp = n;
+      while (d * d <= temp) {
+        while (temp % d === 0) {
+          factors[d] = (factors[d] || 0) + 1;
+          temp /= d;
+        }
+        d++;
+      }
+      if (temp > 1) factors[temp] = (factors[temp] || 0) + 1;
+      return factors;
+    }
+
+    function buildIdentityVector(acoustics, temporal) {
+      const baseTwoExponent = (temporal.dayFactors[2] || 0) + (temporal.monthFactors[2] || 0);
+      const isYearPrime = Object.keys(temporal.yearFactors).length === 1 && temporal.yearFactors[Object.keys(temporal.yearFactors)[0]] === 1;
+
+      return {
+        mass: Math.min(1.2, (acoustics.avgMass * 0.6) + (Math.min(5, baseTwoExponent) * 0.08)),
+        acuity: Math.min(1.2, (acoustics.avgF2 / 2400) * 0.85),
+        momentum: Math.min(1.2, (acoustics.frictionScore * 0.5) + (isYearPrime ? 0.45 : 0.2))
+      };
+    }
+
+    // 3. SVG GRAPHIC GENERATION PIPELINE
+    function renderSVGCharts(vectors, acoustics) {
+      // P1: Radar
+      const radSize = 240;
+      const radCenter = radSize / 2;
+      const radRadius = 80;
+      const angles = [-Math.PI / 2, Math.PI / 6, (5 * Math.PI) / 6];
+      const pts = [vectors.mass, vectors.acuity, vectors.momentum].map((v, i) => {
+        const r = Math.min(1.2, v) * radRadius;
+        return `${radCenter + r * Math.cos(angles[i])},${radCenter + r * Math.sin(angles[i])}`;
+      }).join(' ');
+
+      document.getElementById('chart-radar-p1').innerHTML = `
+        <svg viewBox="0 0 ${radSize} ${radSize}" class="w-full h-auto">
+          <circle cx="${radCenter}" cy="${radCenter}" r="${radRadius * 0.33}" fill="none" stroke="#262626" stroke-width="1" stroke-dasharray="2 2"/>
+          <circle cx="${radCenter}" cy="${radCenter}" r="${radRadius * 0.66}" fill="none" stroke="#262626" stroke-width="1" stroke-dasharray="2 2"/>
+          <circle cx="${radCenter}" cy="${radCenter}" r="${radRadius}" fill="none" stroke="#333" stroke-width="1"/>
+          ${angles.map(a => `<line x1="${radCenter}" y1="${radCenter}" x2="${radCenter + radRadius * Math.cos(a)}" y2="${radCenter + radRadius * Math.sin(a)}" stroke="#333" stroke-width="1"/>`).join('')}
+          <text x="${radCenter}" y="${radCenter - radRadius - 8}" fill="#a3a3a3" font-size="9" font-family="monospace" text-anchor="middle">MASS (${vectors.mass.toFixed(2)})</text>
+          <text x="${radCenter + radRadius + 12}" y="${radCenter + radRadius / 2 + 4}" fill="#a3a3a3" font-size="9" font-family="monospace" text-anchor="start">ACUITY (${vectors.acuity.toFixed(2)})</text>
+          <text x="${radCenter - radRadius - 12}" y="${radCenter + radRadius / 2 + 4}" fill="#a3a3a3" font-size="9" font-family="monospace" text-anchor="end">MOMENTUM (${vectors.momentum.toFixed(2)})</text>
+          <polygon points="${pts}" fill="rgba(52,211,153,0.25)" stroke="#34d399" stroke-width="1.75"/>
+        </svg>
+      `;
+
+      // P2: Acoustic Formants
+      let pathF1 = "", pathF2 = "";
+      const step = 400 / Math.max(1, acoustics.tokens.length - 1);
+      acoustics.tokens.forEach((t, i) => {
+        const x = 30 + i * step;
+        const yF1 = 120 - (t.f1 / 1000) * 80;
+        const yF2 = 120 - (t.f2 / 2600) * 100;
+        pathF1 += (i === 0 ? `M ${x} ${yF1}` : ` L ${x} ${yF1}`);
+        pathF2 += (i === 0 ? `M ${x} ${yF2}` : ` L ${x} ${yF2}`);
+      });
+
+      document.getElementById('chart-acoustic-p2').innerHTML = `
+        <svg viewBox="0 0 460 140" class="w-full h-auto">
+          <line x1="30" y1="120" x2="430" y2="120" stroke="#333" stroke-width="1"/>
+          <path d="${pathF1}" fill="none" stroke="#22d3ee" stroke-width="2"/>
+          <path d="${pathF2}" fill="none" stroke="#34d399" stroke-width="2" stroke-dasharray="3 3"/>
+          ${acoustics.tokens.map((t, i) => `
+            <text x="${30 + i * step}" y="134" fill="#a3a3a3" font-size="10" font-family="monospace" text-anchor="middle">${t.char}</text>
+          `).join('')}
+          <text x="30" y="20" fill="#22d3ee" font-size="9" font-family="monospace">F1 (Mass / Aperture)</text>
+          <text x="170" y="20" fill="#34d399" font-size="9" font-family="monospace">F2 (Clarity / Resonance)</text>
+        </svg>
+      `;
+
+      // P3: Prime Lattice
+      document.getElementById('chart-lattice-p3').innerHTML = `
+        <svg viewBox="0 0 460 140" class="w-full h-auto">
+          <rect x="50" y="40" width="60" height="60" fill="rgba(52,211,153,0.1)" stroke="#34d399" stroke-width="1.5"/>
+          <text x="80" y="75" fill="#fff" font-size="12" font-family="monospace" text-anchor="middle">2²</text>
+          <text x="80" y="115" fill="#a3a3a3" font-size="9" font-family="monospace" text-anchor="middle">Planar Day</text>
+
+          <line x1="110" y1="70" x2="190" y2="70" stroke="#444" stroke-width="1.5" stroke-dasharray="2 2"/>
+
+          <!-- Isometric Cube representation for 2^3 -->
+          <polygon points="210,50 250,50 270,30 230,30" fill="rgba(52,211,153,0.15)" stroke="#34d399" stroke-width="1"/>
+          <polygon points="210,50 250,50 250,90 210,90" fill="rgba(52,211,153,0.2)" stroke="#34d399" stroke-width="1.5"/>
+          <polygon points="250,50 270,30 270,70 250,90" fill="rgba(52,211,153,0.1)" stroke="#34d399" stroke-width="1"/>
+          <text x="230" y="75" fill="#fff" font-size="12" font-family="monospace" text-anchor="middle">2³</text>
+          <text x="240" y="115" fill="#a3a3a3" font-size="9" font-family="monospace" text-anchor="middle">Volume Month</text>
+
+          <line x1="270" y1="70" x2="340" y2="70" stroke="#444" stroke-width="1.5" stroke-dasharray="2 2"/>
+
+          <!-- Monolith representation for 1973 prime -->
+          <rect x="360" y="25" width="40" height="80" fill="rgba(34,211,238,0.2)" stroke="#22d3ee" stroke-width="1.5"/>
+          <text x="380" y="70" fill="#22d3ee" font-size="11" font-family="monospace" text-anchor="middle">1973</text>
+          <text x="380" y="120" fill="#a3a3a3" font-size="9" font-family="monospace" text-anchor="middle">Prime Pillar</text>
+        </svg>
+      `;
+
+      // P4: State Machine
+      document.getElementById('chart-fsm-p4').innerHTML = `
+        <svg viewBox="0 0 460 120" class="w-full h-auto">
+          <circle cx="80" cy="60" r="32" fill="rgba(52,211,153,0.15)" stroke="#34d399" stroke-width="1.5"/>
+          <text x="80" y="58" fill="#fff" font-size="10" font-family="monospace" text-anchor="middle">GROUND</text>
+          <text x="80" y="72" fill="#a3a3a3" font-size="8" font-family="monospace" text-anchor="middle">Rest Mode</text>
+
+          <path d="M 112 50 L 208 50" stroke="#666" stroke-width="1.5" marker-end="url(#arr)"/>
+          <path d="M 208 70 L 112 70" stroke="#666" stroke-width="1.5"/>
+
+          <circle cx="240" cy="60" r="32" fill="rgba(34,211,238,0.15)" stroke="#22d3ee" stroke-width="1.5"/>
+          <text x="240" y="58" fill="#fff" font-size="10" font-family="monospace" text-anchor="middle">KINETIC</text>
+          <text x="240" y="72" fill="#a3a3a3" font-size="8" font-family="monospace" text-anchor="middle">Execution</text>
+
+          <path d="M 272 60 L 348 60" stroke="#e11d48" stroke-width="1.5"/>
+
+          <circle cx="380" cy="60" r="32" fill="rgba(244,63,94,0.15)" stroke="#f43f5e" stroke-width="1.5"/>
+          <text x="380" y="58" fill="#fff" font-size="10" font-family="monospace" text-anchor="middle">ENTROPY</text>
+          <text x="380" y="72" fill="#a3a3a3" font-size="8" font-family="monospace" text-anchor="middle">Isolation</text>
+        </svg>
+      `;
+
+      // P5: Trajectory Curve
+      document.getElementById('chart-trajectory-p5').innerHTML = `
+        <svg viewBox="0 0 460 130" class="w-full h-auto">
+          <line x1="30" y1="100" x2="430" y2="100" stroke="#333" stroke-width="1"/>
+          <path d="M 30 90 Q 120 20 220 70 T 430 40" fill="none" stroke="#34d399" stroke-width="2"/>
+          <circle cx="280" cy="68" r="5" fill="#22d3ee" stroke="#fff" stroke-width="1.5"/>
+          <text x="280" y="52" fill="#22d3ee" font-size="10" font-family="monospace" text-anchor="middle">t = 53 (Distillation Gateway)</text>
+          <text x="30" y="115" fill="#666" font-size="9" font-family="monospace">Age 0</text>
+          <text x="215" y="115" fill="#666" font-size="9" font-family="monospace">Age 40</text>
+          <text x="415" y="115" fill="#666" font-size="9" font-family="monospace">Age 80</text>
+        </svg>
+      `;
+
+      // P6: Stress Curve
+      document.getElementById('chart-stress-p6').innerHTML = `
+        <svg viewBox="0 0 460 130" class="w-full h-auto">
+          <line x1="30" y1="100" x2="430" y2="100" stroke="#333" stroke-width="1"/>
+          <line x1="30" y1="20" x2="30" y2="100" stroke="#333" stroke-width="1"/>
+          <path d="M 30 100 L 160 40 Q 230 35 290 65 L 410 70" fill="none" stroke="#f43f5e" stroke-width="2"/>
+          <line x1="160" y1="20" x2="160" y2="100" stroke="#444" stroke-dasharray="2 2"/>
+          <text x="160" y="15" fill="#a3a3a3" font-size="8" font-family="monospace" text-anchor="middle">Elastic Yield Point</text>
+          <text x="350" y="60" fill="#f43f5e" font-size="9" font-family="monospace">Systemic Isolation</text>
+        </svg>
+      `;
+
+      // P7: Wave Interference
+      document.getElementById('chart-wave-p7').innerHTML = `
+        <svg viewBox="0 0 460 120" class="w-full h-auto">
+          <path d="M 30 40 Q 70 10 110 40 T 190 40 T 270 40 T 350 40 T 430 40" fill="none" stroke="#34d399" stroke-width="1.5" opacity="0.6"/>
+          <path d="M 30 45 Q 70 20 110 45 T 190 45 T 270 45 T 350 45 T 430 45" fill="none" stroke="#22d3ee" stroke-width="1.5" opacity="0.6"/>
+          <path d="M 30 90 Q 70 50 110 90 T 190 90 T 270 90 T 350 90 T 430 90" fill="none" stroke="#fff" stroke-width="2"/>
+          <text x="30" y="20" fill="#a3a3a3" font-size="8" font-family="monospace">Source Waves</text>
+          <text x="30" y="78" fill="#fff" font-size="8" font-family="monospace">Constructive Synthesis Field</text>
+        </svg>
+      `;
+
+      // P8: Diurnal Schedule
+      document.getElementById('chart-diurnal-p8').innerHTML = `
+        <svg viewBox="0 0 460 100" class="w-full h-auto">
+          <rect x="30" y="30" width="100" height="40" rx="4" fill="rgba(52,211,153,0.1)" stroke="#34d399"/>
+          <text x="80" y="48" fill="#fff" font-size="9" font-family="monospace" text-anchor="middle">GROUND</text>
+          <text x="80" y="60" fill="#a3a3a3" font-size="8" font-family="monospace" text-anchor="middle">06:00 - 10:00</text>
+
+          <rect x="140" y="30" width="160" height="40" rx="4" fill="rgba(34,211,238,0.1)" stroke="#22d3ee"/>
+          <text x="220" y="48" fill="#fff" font-size="9" font-family="monospace" text-anchor="middle">KINETIC BUILD</text>
+          <text x="220" y="60" fill="#a3a3a3" font-size="8" font-family="monospace" text-anchor="middle">10:00 - 16:00</text>
+
+          <rect x="310" y="30" width="120" height="40" rx="4" fill="rgba(255,255,255,0.05)" stroke="#666"/>
+          <text x="370" y="48" fill="#fff" font-size="9" font-family="monospace" text-anchor="middle">DISTILLATION</text>
+          <text x="370" y="60" fill="#a3a3a3" font-size="8" font-family="monospace" text-anchor="middle">16:00 - 21:00</text>
+        </svg>
+      `;
+    }
+
+    // 4. MAIN PIPELINE EXECUTION
+    function recalculateDossier() {
+      const name = document.getElementById('inputName').value.trim() || "Bala Danmeri";
+      const dateStr = document.getElementById('inputDate').value || "1973-08-04";
+
+      const d = new Date(dateStr);
+      const day = d.getDate(), month = d.getMonth() + 1, year = d.getFullYear();
+      const age = new Date().getFullYear() - year;
+
+      const acoustics = analyzeAcoustics(name);
+      const temporal = {
+        dayFactors: getPrimeFactors(day),
+        monthFactors: getPrimeFactors(month),
+        yearFactors: getPrimeFactors(year)
+      };
+      const vectors = buildIdentityVector(acoustics, temporal);
+
+      // DOM Updates
+      document.getElementById('p1-name').textContent = name;
+      document.getElementById('p1-meta').textContent = `Inception: ${dateStr} • Age Cycle: ${age}`;
+      document.getElementById('p1-mass').textContent = vectors.mass.toFixed(3);
+      document.getElementById('p1-acuity').textContent = vectors.acuity.toFixed(3);
+      document.getElementById('p1-momentum').textContent = vectors.momentum.toFixed(3);
+
+      renderSVGCharts(vectors, acoustics);
+    }
+
+    // 5. JSON EXPORT PIPELINE
+    function exportProfileJSON() {
+      const name = document.getElementById('inputName').value.trim();
+      const dateStr = document.getElementById('inputDate').value;
+      const d = new Date(dateStr);
+      const day = d.getDate(), month = d.getMonth() + 1, year = d.getFullYear();
+      const age = new Date().getFullYear() - year;
+
+      const acoustics = analyzeAcoustics(name);
+      const dayFactors = getPrimeFactors(day);
+      const monthFactors = getPrimeFactors(month);
+      const yearFactors = getPrimeFactors(year);
+      const vectors = buildIdentityVector(acoustics, { dayFactors, monthFactors, yearFactors });
+
+      const payload = {
+        "$schema": "https://dsvn.org/schemas/v1/profile.json",
+        "meta": {
+          "engine": "Dynamic State-Vector Numerology (DSVN)",
+          "version": "1.0.0",
+          "timestamp_utc": new Date().toISOString()
+        },
+        "subject": { "name_raw": name, "birth_date": dateStr, "calculated_age": age },
+        "state_vectors": {
+          "identity_coordinates": {
+            "mass_grounding": Number(vectors.mass.toFixed(4)),
+            "acuity_clarity": Number(vectors.acuity.toFixed(4)),
+            "momentum_drive": Number(vectors.momentum.toFixed(4))
+          },
+          "derived_metrics": {
+            "vector_magnitude": Number(Math.hypot(vectors.mass, vectors.acuity, vectors.momentum).toFixed(4)),
+            "impedance_ratio": Number(acoustics.frictionScore.toFixed(4)),
+            "spectral_spread_hz": Math.round(acoustics.maxF2 - acoustics.minF1)
+          }
+        },
+        "temporal_tensor": {
+          "day": { "value": day, "prime_factors": dayFactors },
+          "month": { "value": month, "prime_factors": monthFactors },
+          "year": { "value": year, "prime_factors": yearFactors }
+        },
+        "operational_states": {
+          "ground_state": { "focus": "Contemplative Synthesis", "attenuation": 0.15 },
+          "kinetic_state": { "focus": "Deterministic Construction", "attenuation": 0.82 },
+          "entropy_state": { "focus": "Hyper-Categorical Isolation", "attenuation": 0.95 }
+        }
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
+      const a = document.createElement('a');
+      a.href = dataStr;
+      a.download = `${name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_dsvn.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    // 6. RELATIONAL COMPARISON PIPELINE
+    let compState = { profileA: null, profileB: null };
+
+    function openCompareModal() {
+      document.getElementById('compareModal').classList.remove('hidden');
+      const name = document.getElementById('inputName').value.trim();
+      const dateStr = document.getElementById('inputDate').value;
+      if (name && dateStr) {
+        compState.profileA = generateActivePayload();
+        document.getElementById('labelProfileA').textContent = `${compState.profileA.subject.name_raw} (Current Engine)`;
+      }
+      if (compState.profileA && compState.profileB) runComparison();
+    }
+
+    function closeCompareModal() {
+      document.getElementById('compareModal').classList.add('hidden');
+    }
+
+    function generateActivePayload() {
+      const name = document.getElementById('inputName').value.trim();
+      const dateStr = document.getElementById('inputDate').value;
+      const d = new Date(dateStr);
+      const day = d.getDate(), month = d.getMonth() + 1, year = d.getFullYear();
+      const acoustics = analyzeAcoustics(name);
+      const dayFactors = getPrimeFactors(day), monthFactors = getPrimeFactors(month), yearFactors = getPrimeFactors(year);
+      const vectors = buildIdentityVector(acoustics, { dayFactors, monthFactors, yearFactors });
+
+      return {
+        subject: { name_raw: name, birth_date: dateStr },
+        state_vectors: { identity_coordinates: { mass_grounding: vectors.mass, acuity_clarity: vectors.acuity, momentum_drive: vectors.momentum } },
+        operational_states: { ground_state: { attenuation: 0.15 }, kinetic_state: { attenuation: 0.82 }, entropy_state: { attenuation: 0.95 } },
+        temporal_tensor: { day: { prime_factors: dayFactors }, month: { prime_factors: monthFactors }, year: { prime_factors: yearFactors } }
+      };
+    }
+
+    async function loadProfileFile(evt, slot) {
+      const file = evt.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (slot === 'A') {
+          compState.profileA = data;
+          document.getElementById('labelProfileA').textContent = data.subject.name_raw;
+        } else {
+          compState.profileB = data;
+          document.getElementById('labelProfileB').textContent = data.subject.name_raw;
+        }
+        if (compState.profileA && compState.profileB) runComparison();
+      } catch (err) {
+        alert("Failed to parse JSON: " + err.message);
+      }
+    }
+
+    function computeDSVNResonance(pA, pB) {
+      const u = [pA.state_vectors.identity_coordinates.mass_grounding, pA.state_vectors.identity_coordinates.acuity_clarity, pA.state_vectors.identity_coordinates.momentum_drive];
+      const v = [pB.state_vectors.identity_coordinates.mass_grounding, pB.state_vectors.identity_coordinates.acuity_clarity, pB.state_vectors.identity_coordinates.momentum_drive];
+
+      const dot = u[0]*v[0] + u[1]*v[1] + u[2]*v[2];
+      const normU = Math.hypot(...u), normV = Math.hypot(...v);
+      const cosSim = normU && normV ? dot / (normU * normV) : 0;
+
+      const sA = [pA.operational_states.ground_state.attenuation, pA.operational_states.kinetic_state.attenuation, pA.operational_states.entropy_state.attenuation];
+      const sB = [pB.operational_states.ground_state.attenuation, pB.operational_states.kinetic_state.attenuation, pB.operational_states.entropy_state.attenuation];
+      const tensor = sA.map(a => sB.map(b => a * b));
+
+      const trace = tensor[0][0] + tensor[1][1] + tensor[2][2];
+      const entropyRisk = tensor[2][2];
+
+      const primesA = new Set(), primesB = new Set();
+      ['day','month','year'].forEach(k => {
+        if (pA.temporal_tensor[k]?.prime_factors) Object.keys(pA.temporal_tensor[k].prime_factors).forEach(p => primesA.add(Number(p)));
+        if (pB.temporal_tensor[k]?.prime_factors) Object.keys(pB.temporal_tensor[k].prime_factors).forEach(p => primesB.add(Number(p)));
+      });
+      const shared = new Set([...primesA].filter(x => primesB.has(x)));
+      const union = new Set([...primesA, ...primesB]);
+
+      return {
+        cosSim,
+        tensor,
+        trace,
+        entropyRisk,
+        sharedPrimes: Array.from(shared),
+        overlap: union.size > 0 ? shared.size / union.size : 0
+      };
+    }
+
+    function runComparison() {
+      const res = computeDSVNResonance(compState.profileA, compState.profileB);
+
+      document.getElementById('resCosineSim').textContent = res.cosSim.toFixed(4);
+      document.getElementById('resCosineGrade').textContent = res.cosSim > 0.85 ? "Harmonic Alignment" : "Orthogonal Divergence";
+      document.getElementById('resTraceSync').textContent = res.trace.toFixed(4);
+      document.getElementById('resEntropyRisk').textContent = res.entropyRisk.toFixed(4);
+
+      const riskEl = document.getElementById('resEntropyGrade');
+      riskEl.textContent = res.entropyRisk > 0.75 ? "High Isolation Contagion" : "Damped Interlock";
+      riskEl.className = res.entropyRisk > 0.75 ? "text-xs text-rose-400 mt-1" : "text-xs text-emerald-400 mt-1";
+
+      document.getElementById('primeLatticeSummary').textContent = `Shared Prime Harmonics: [ ${res.sharedPrimes.join(', ') || 'None'} ] (Overlap: ${(res.overlap * 100).toFixed(0)}%)`;
+
+      // Render Comparison Heatmap
+      let heatSvg = `<svg viewBox="0 0 240 240" class="w-full h-auto">`;
+      for(let r=0; r<3; r++){
+        for(let c=0; c<3; c++){
+          const val = res.tensor[r][c];
+          const fill = `rgba(52,211,153,${Math.max(0.1, val)})`;
+          heatSvg += `<rect x="${40 + c*60}" y="${40 + r*60}" width="54" height="54" rx="4" fill="${fill}" stroke="#1f2937"/>
+                      <text x="${67 + c*60}" y="${72 + r*60}" fill="#fff" font-size="11" font-family="monospace" text-anchor="middle">${val.toFixed(2)}</text>`;
+        }
+      }
+      heatSvg += `</svg>`;
+      document.getElementById('tensorHeatmapContainer').innerHTML = heatSvg;
+
+      // Overlaid Radar
+      const radSize = 240, c = radSize / 2, r = 80;
+      const angs = [-Math.PI / 2, Math.PI / 6, (5 * Math.PI) / 6];
+      const getPts = (coords) => [coords.mass_grounding, coords.acuity_clarity, coords.momentum_drive].map((v, i) => `${c + Math.min(1.2, v) * r * Math.cos(angs[i])},${c + Math.min(1.2, v) * r * Math.sin(angs[i])}`).join(' ');
+
+      document.getElementById('compareRadarContainer').innerHTML = `
+        <svg viewBox="0 0 ${radSize} ${radSize}" class="w-full h-auto">
+          <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="#333" stroke-width="1"/>
+          <polygon points="${getPts(compState.profileA.state_vectors.identity_coordinates)}" fill="rgba(52,211,153,0.2)" stroke="#34d399" stroke-width="1.5"/>
+          <polygon points="${getPts(compState.profileB.state_vectors.identity_coordinates)}" fill="rgba(34,211,238,0.2)" stroke="#22d3ee" stroke-width="1.5"/>
+        </svg>
+      `;
+
+      // Diagnostic text
+      const notes = [];
+      if (res.cosSim > 0.85) notes.push("High intuitive communication; shared operational geometry requires minimal translation.");
+      else notes.push("Orthogonal working styles: party A and party B approach systems from fundamentally different axes.");
+      if (res.entropyRisk > 0.75) notes.push("Mutual stress vulnerability: shared pressure leads to synchronous shutdown rather than mutual stabilization.");
+      document.getElementById('resynthesisPoints').innerHTML = notes.map(n => `<li>&bull; ${n}</li>`).join('');
+
+      document.getElementById('compareResults').classList.remove('hidden');
+    }
+
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', recalculateDossier);
+  </script>
+</body>
+</html>
